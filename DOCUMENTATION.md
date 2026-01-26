@@ -39,7 +39,7 @@ This system provides a complete RESTful API implementation following MEF (Metro 
 ✅ **DynamoDB Storage** - High-performance NoSQL database for persistence  
 ✅ **Comprehensive Logging** - Audit trail for all requests/responses  
 ✅ **API Key Authentication** - Secure caller-based access control  
-✅ **National Provider Integration** - Integration with POST Luxembourg FTTH API
+✅ **National Coverage** - AddressValidation of over 96% of all Buildings in Luxembourg
 
 ---
 
