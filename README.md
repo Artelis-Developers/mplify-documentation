@@ -1852,7 +1852,7 @@ aws dynamodb scan \
   - Attributes: `callerId`, `mrcDiscount`, `nrcDiscount`
 
 #### FO-POP Activation Tracking
-- **X001-OSS-FO-POP-CEGECOM** - Activated fiber points-of-presence
+- **360-apps-Fopops** - Shared FO-POP registry (owned by the 360-Apps project; read-only here). Lists every FO-POP, with `cegecomPresent` flagging the ones Cegecom has opened.
   - Partition Key: `popId` (e.g., `LUX-POP-01`)
   - Attributes: `location`, `updatedAt`
 
@@ -2001,7 +2001,10 @@ None. This implementation fully complies with MEF LSO Sonata (Billie) specificat
 - `CONFIG_S3_BUCKET` - S3 bucket for configuration overrides
 - `CONFIG_S3_KEY` - Policy configuration key in S3
 - `MAPPING_S3_KEY` - MEF mapping configuration key in S3
-- `FO_POP_TABLE` - Override FO-POP table name (default: `X001-OSS-FO-POP-CEGECOM`)
+- `FO_POP_TABLE` - Override FO-POP table name (default: `360-apps-Fopops`)
+- `ADDRESS_TABLE_NAME` - Override address table name (default: `X001-MPLIFY-ADDRESS-DATA`)
+- `MOCK_POST_API` - Set `true` to skip the real fiber network API and return a canned serviceable response (dev only)
+- `MOCK_FO_POP` - FO-POP id injected into the mocked response, so the activation check can be exercised in dev
 
 ### AWS Environment
 
