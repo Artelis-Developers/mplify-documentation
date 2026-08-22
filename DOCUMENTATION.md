@@ -37,7 +37,7 @@ Enterprise-grade implementation of the MEF (Metro Ethernet Forum) LSO Sonata (Bi
 ### Key Features
 
 ✅ **MEF Compliance** - Strict adherence to MEF LSO Sonata (Billie) specification  
-✅ **Clean Architecture** - Separation of concerns with stable business logic  
+✅ **Endpoint-Oriented Structure** - One folder per MEF endpoint, with enforced layer boundaries  
 ✅ **Serverless** - AWS Lambda with API Gateway for scalability  
 ✅ **High Performance** - DynamoDB for sub-millisecond data access  
 ✅ **Comprehensive Logging** - Full audit trail for all requests/responses  
@@ -80,54 +80,86 @@ Example: `https://abc123.lambda-url.eu-central-1.on.aws/staging/billie`
 
 ## Architecture
 
-Built on **Clean Architecture** principles with clear separation between stable business logic and volatile infrastructure:
+Organised **by endpoint**, with five layers. Each MEF endpoint owns its own folder containing everything specific to it, and the three shared layers hold only what more than one endpoint genuinely needs:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   API Gateway Layer                      │
-│                  (HTTP Handlers)                         │
+│                       api/                               │
+│              (Routing. Nothing else.)                    │
 ├─────────────────────────────────────────────────────────┤
-│              Application Services Layer                  │
-│            (Orchestration & Workflows)                   │
+│                    endpoints/                            │
+│   address_validation │ qualification │ quote │ order     │
+│      (One folder per MEF endpoint, self-contained)       │
 ├─────────────────────────────────────────────────────────┤
-│                 Use Cases Layer                          │
-│              (Business Workflows)                        │
+│                     domain/                              │
+│      (Product rules. Imports nothing but domain.)        │
 ├─────────────────────────────────────────────────────────┤
-│                  Domain Layer                            │
-│             (Core Business Rules)                        │
+│                    gateways/                             │
+│        (Everything that leaves the process)              │
 ├─────────────────────────────────────────────────────────┤
-│              Infrastructure Layer                        │
-│     (External Integrations & Adapters)                   │
+│                     shared/                              │
+│    (Config data, MEF constants, small helpers)           │
 └─────────────────────────────────────────────────────────┘
 ```
 
+Three rules hold this together, and each is enforced by a test in `tests/test_architecture.py`:
+
+- **No endpoint imports another endpoint.** Anything two endpoints both need moves down a layer instead. This is why the cross-endpoint database reads live in `gateways/events.py` rather than in the store of whichever endpoint owns the table.
+- **`domain/` imports only `domain/`.** No AWS, no HTTP, no configuration loading. Where a rule needs something from outside, it is passed in as an argument.
+- **`gateways/` never imports an endpoint.** Dependencies point inward only.
+
+The layer an endpoint is *not* allowed to reach sideways into is what keeps the four endpoints independently readable. A change to Quote cannot break POQ except through `domain/`, `gateways/` or `shared/`, and those three are small and heavily tested.
+
+Ports and adapters are used where a second implementation genuinely exists: `gateways/eligibility/` has a port because the supplier call has both a real and a mock implementation. Nothing else has one.
+
 ### Directory Structure
+
+94 files across five layers. Endpoint folders are flat by design: a file per step of the request, named for what it does.
 
 ```
 src/
-├── domain/         Core business logic (stable)
-│   ├── exceptions/ Error definitions
-│   ├── models/     Domain entities
-│   └── rules/      Business rules
-├── shared/         Shared utilities and configuration (stable)
-│   ├── config/     Configuration files
-│   ├── constants/  MEF constants
-│   └── utils/      Helper functions
-├── use_cases/      Application workflows (semi-stable)
-│   ├── address/    Address validation
-│   ├── qualification/ Product qualification
-│   ├── quote/      Quote management
-│   └── order/      Order management
-├── adapters/       External integrations (volatile)
-│   ├── http/       HTTP handlers
-│   ├── logging/    Logging adapters
-│   └── external/   External service integrations
-└── services/       Infrastructure services
-    ├── api_key_service.py
-    ├── database_service.py
-    ├── pricing_service.py
-    └── post_service.py (National fiber network integration)
+├── router.py           Entry point. Path to endpoint handler.
+├── api/                Request/response plumbing
+│   └── gateway.py
+├── endpoints/          One folder per MEF endpoint (50 files)
+│   ├── address_validation/  handler, service, response, alternatives, store
+│   ├── qualification/       handler, validate, service, serviceability,
+│   │                        product_paths, address, response, store, uniqueness
+│   ├── quote/               handler, validate, service, compute_pricing,
+│   │                        verify_poq, persist_quote, store, response/, ...
+│   └── order/               handler, validate, service, verify_quote,
+│                            verify_poq, persist_order, store, ...
+├── domain/             Product rules, no I/O (9 files)
+│   ├── rules/          product_type, product, bandwidth,
+│   │                   fiber_selection, bitstream_selection
+│   └── exceptions/     mef_errors (MEF codes and HTTP statuses)
+├── gateways/           Everything leaving the process (19 files)
+│   ├── dynamo/         client, tables, items, key_schema
+│   ├── eligibility/    port, calls_lambda_gateway, mock_gateway, payload
+│   ├── events.py       Cross-endpoint reads of the event tables
+│   ├── pricing.py      Pricing tables
+│   ├── addresses.py    Address lookups
+│   ├── contacts.py     Seller contact information
+│   ├── fo_pops.py      FO-POP activation registry
+│   ├── api_keys.py     Caller resolution
+│   └── config.py       Configuration loading
+└── shared/             Used by more than one endpoint (12 files)
+    ├── config/         policy.json, mef_mapping.json
+    ├── constants/      mef_constants (MEF vocabulary)
+    └── utils/          identifiers, time, http_helpers, date_utils,
+                        postcode, text_processing, livelink_normalization
 ```
+
+**Where to look for a given change:**
+
+| Change | Folder |
+|--------|--------|
+| One endpoint's request/response shape or validation | `endpoints/<name>/` |
+| Which product a request is for, or what its rates oblige | `domain/rules/` |
+| Which media a product is qualified over | `endpoints/qualification/product_paths.py` |
+| An error code or HTTP status | `domain/exceptions/mef_errors.py` |
+| A DynamoDB table, index, or external call | `gateways/` |
+| A new MEF endpoint | A new folder under `endpoints/` |
 
 ---
 
