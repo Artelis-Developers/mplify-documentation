@@ -220,6 +220,10 @@ Prices what a POQ said is serviceable. `productOfferingQualificationItem` on a q
 item links back to the qualification — both halves, `productOfferingQualificationId`
 and `id`, because one qualification can answer several products.
 
+The submitted product must match the linked POQ item's product, including its
+configuration, offering, location and existing-product relationships. A mismatch
+returns `422 invalidValue` with a `propertyPath` identifying the field.
+
 The answer carries, per item, a `quoteItemPrice` (non-recurring and recurring),
 `quoteItemTerm`, and an installation interval. The quote as a whole carries a
 `validFor` window. Treat `endDateTime` as the end of the quoted validity and obtain a
@@ -290,9 +294,13 @@ two-item quote needs two order items.
 Seller. It is triggered by a Product Order."* The order and the acceptance are written
 together; neither can happen without the other.
 
-The order must describe the same product its quote priced. Stating less is fine and the
-quote's values apply; stating something that **disagrees** — a different offering, a
-different `@type`, different bandwidth, a different contract term — is refused.
+The order must describe the same product its quote priced, including the full
+`productConfiguration`, offering, location and existing-product relationships.
+Optional configuration fields must agree in presence and value; values are not
+inherited. The same product is also checked against the linked POQ item.
+A disagreement returns `422 invalidValue` with a `propertyPath` identifying the
+field. Endpoint-specific configuration URNs are compared as the same product type.
+A stated contract term must also agree with the quote.
 
 A quote may be ordered once. A second order against the same quote is refused; request a
 new quote.
@@ -549,8 +557,43 @@ Save this as `order-request.json`, substituting `QUOTE_ID`:
       "id": "item-1",
       "action": "add",
       "product": {
+        "place": [
+          {
+            "role": "INSTALL_LOCATION",
+            "id": "ADDRESS_ID",
+            "@type": "GeographicAddressRef"
+          }
+        ],
+        "productOffering": {
+          "id": "ONLINE-BUSINESS-1000/500"
+        },
         "productConfiguration": {
-          "@type": "BROADBAND"
+          "@type": "BROADBAND",
+          "ipvc": {
+            "ipvcEndPoint": {}
+          },
+          "ipUni": {
+            "egressBandwidthProfileEnvelope": {
+              "cir": {
+                "irValue": 1000,
+                "irUnits": "MBPS"
+              }
+            },
+            "ingressBandwidthProfileEnvelope": {
+              "cir": {
+                "irValue": 500,
+                "irUnits": "MBPS"
+              }
+            }
+          },
+          "ipUniAccessLink": {},
+          "ipUniAccessLinkTrunk": {
+            "ethernetPhysicalLink": [
+              {
+                "physicalLayer": "1000BASE_T"
+              }
+            ]
+          }
         }
       },
       "quoteItem": {
@@ -568,9 +611,11 @@ curl -sS -X POST "$BASE/productOrder" \
   --data-binary @order-request.json
 ```
 
-This request states the product type; other optional product details inherit from
-the quote. If you send an offering, bandwidth or term, it must agree with the quote.
-Keep the nonempty `productConfiguration`; a quote reference alone is insufficient.
+Send the same product offering, configuration, location and product relationships
+as the referenced quote item. Every configuration attribute is compared, including
+both bandwidth values and their individual units. Optional fields must match in
+presence and value; values are not inherited from the quote. A quote reference alone
+is insufficient. A stated contract term must also agree with the quote.
 
 The initial order response has `state: "acknowledged"`. Copy its top-level `id` to
 `ORDER_ID`; acknowledgment means receipt, not completion of provisioning.
@@ -970,11 +1015,25 @@ substituting `CE_QUOTE_ID` and the offering ids returned by the quote:
         "id": "1"
       },
       "product": {
+        "productConfiguration": {
+          "@type": "urn:mef:lso:spec:sonata:carrier-ethernet-operator-uni:v2.0.0:order",
+          "listofPhysicalLinks": [
+            {
+              "uniConnectorType": "LC",
+              "id": "LC__1000BASE_LX",
+              "physicalLink": "1000BASE_LX"
+            }
+          ]
+        },
+        "place": [
+          {
+            "@type": "GeographicSiteRef",
+            "id": "ADDRESS_ID",
+            "role": "INSTALL_LOCATION"
+          }
+        ],
         "productOffering": {
           "id": "CONNECT-ETHERNET-UNI"
-        },
-        "productConfiguration": {
-          "@type": "urn:mef:lso:spec:sonata:carrier-ethernet-operator-uni:v2.0.0:order"
         }
       }
     },
@@ -986,11 +1045,60 @@ substituting `CE_QUOTE_ID` and the offering ids returned by the quote:
         "id": "2"
       },
       "product": {
+        "productConfiguration": {
+          "@type": "urn:mef:lso:spec:sonata:access-eline:v2.0.0:order",
+          "listOfClassOfServiceNames": [
+            "Basic"
+          ],
+          "uniEp": {
+            "ovcEndPointMap": {
+              "mapType": "FORM_U",
+              "ovcEndPointMapFormU": [
+                200
+              ]
+            },
+            "ingressBandwidthProfilePerClassOfServiceName": [
+              {
+                "classOfServiceName": "Basic",
+                "bwpFlow": {
+                  "cir": {
+                    "irValue": 100,
+                    "irUnits": "MBPS"
+                  },
+                  "envelopeId": "1234567890"
+                }
+              }
+            ]
+          },
+          "enniEp": {
+            "ovcEndPointMap": {
+              "mapType": "FORM_E",
+              "ovcEndPointMapFormE": [
+                100
+              ]
+            },
+            "ingressBandwidthProfilePerClassOfServiceName": [
+              {
+                "classOfServiceName": "Basic",
+                "bwpFlow": {
+                  "cir": {
+                    "irValue": 100,
+                    "irUnits": "MBPS"
+                  },
+                  "envelopeId": "1234567890"
+                }
+              }
+            ]
+          }
+        },
+        "productRelationship": [
+          {
+            "relationshipType": "ENNI_REFERENCE",
+            "id": "ENNI_ID"
+          }
+        ],
         "productOffering": {
           "id": "CONNECT-ETHERNET-100"
-        },
-        "productConfiguration": {
-          "@type": "urn:mef:lso:spec:sonata:access-eline:v2.0.0:order"
         }
       }
     }
@@ -1007,7 +1115,8 @@ curl -sS -X POST "$BASE/productOrder" \
 The order includes both items. Its own item ids (`order-1`, `order-2`) need not match
 the quote's ids: `quoteItem.id` identifies the quote item being ordered. Both
 references must use the same quote resource id. Configuration URNs end in `:order`;
-the omitted optional configuration details inherit from the quote.
+send the full configuration from each quoted item, using the corresponding Order
+URN. Other configuration values must match the quote.
 
 The initial order state is `acknowledged`, and the quote moves to `accepted`.
 Retrieve the order by the id returned in its response, or find it by your reference:
