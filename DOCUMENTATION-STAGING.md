@@ -220,6 +220,10 @@ Prices what a POQ said is serviceable. `productOfferingQualificationItem` on a q
 item links back to the qualification — both halves, `productOfferingQualificationId`
 and `id`, because one qualification can answer several products.
 
+The submitted product must match the linked POQ item's product, including its
+configuration, offering, location and existing-product relationships. A mismatch
+returns `422 invalidValue` with a `propertyPath` identifying the field.
+
 The answer carries, per item, a `quoteItemPrice` (non-recurring and recurring),
 `quoteItemTerm`, and an installation interval. The quote as a whole carries a
 `validFor` window. Treat `endDateTime` as the end of the quoted validity and obtain a
@@ -290,9 +294,13 @@ two-item quote needs two order items.
 Seller. It is triggered by a Product Order."* The order and the acceptance are written
 together; neither can happen without the other.
 
-The order must describe the same product its quote priced. Stating less is fine and the
-quote's values apply; stating something that **disagrees** — a different offering, a
-different `@type`, different bandwidth, a different contract term — is refused.
+The order must describe the same product its quote priced, including the full
+`productConfiguration`, offering, location and existing-product relationships.
+Optional configuration fields must agree in presence and value; values are not
+inherited. The same product is also checked against the linked POQ item.
+A disagreement returns `422 invalidValue` with a `propertyPath` identifying the
+field. Endpoint-specific configuration URNs are compared as the same product type.
+A stated contract term must also agree with the quote.
 
 A quote may be ordered once. A second order against the same quote is refused; request a
 new quote.
