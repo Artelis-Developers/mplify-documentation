@@ -140,6 +140,34 @@ records; omit it and you get our id only.
 - anything under [Not yet implemented](#not-yet-implemented) — we refuse rather than
   accept and ignore.
 
+### IPv4 prefix options
+
+Broadband (`BROADBAND`) and Online-Corporate (`DIA`) products accept an optional
+`product.productConfiguration.ipv4Prefix` in POQ, Quote and Order requests. Select
+an available prefix, such as `"/30"`, `"/29"` or `"/28"`; omitting the field selects
+`"/30"`. Availability comes from the option catalogue and can change without an API
+update. For example, inside
+`productConfiguration`:
+
+```json
+{
+  "@type": "BROADBAND",
+  "ipv4Prefix": "/29"
+}
+```
+
+Keep the selected prefix consistent through POQ, Quote and Order. Omission and an
+explicit `"/30"` are equivalent. Values must use IPv4 prefix notation from `/0` to
+`/32`. Malformed values, including `null`, and use on Ethernet products return
+`422 invalidValue`. A valid prefix absent from the catalogue returns
+`422 referenceNotFound` during POQ or Quote. These errors identify the field with
+`propertyPath`. Order checks the agreed configuration and uses the quoted price.
+
+The selected prefix's recurring and installation charges are added to the product
+charges, including when the default `/30` is selected. The client's global discount
+applies to the combined amounts. The quote returns one final recurring charge and
+one final installation charge per priced item, including the prefix option.
+
 ### The five ids
 
 Easy to conflate, and only one of them is forbidden on an `add`:
