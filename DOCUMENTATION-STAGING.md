@@ -168,6 +168,10 @@ charges, including when the default `/30` is selected. The client's global disco
 applies to the combined amounts. The quote returns one final recurring charge and
 one final installation charge per priced item, including the prefix option.
 
+Product prices use the price list assigned to your client account, defaulting to
+`t2` when no list is assigned. IPv4 option charges are shared across price lists.
+Product-specific discounts are not currently applied.
+
 ### The five ids
 
 Easy to conflate, and only one of them is forbidden on an `add`:
