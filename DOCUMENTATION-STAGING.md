@@ -172,13 +172,17 @@ Values must use IPv4 prefix notation from `/0` to
 `propertyPath`. Order checks the agreed configuration and uses the quoted price.
 
 The selected LAN and WAN recurring and installation charges are added to the product
-charges, including the default WAN `/30`. The client's global discount
-applies to the combined amounts. The quote returns one final recurring charge and
+charges, including the default WAN `/30`. The client's global discount, their
+discount for that specific product, and the product's discount in the assigned
+price list are added together and applied to the combined amounts. Missing or zero
+discounts add nothing; no discount overrides another. MRC and NRC are calculated
+independently, floored at zero and rounded once to two decimals at the end.
+The quote returns one final recurring charge and
 one final installation charge per priced item, including both selected options.
 
-Product prices use the price list assigned to your client account, defaulting to
-`t2` when no list is assigned. IPv4 option charges are shared across price lists.
-Product-specific discounts are not currently applied.
+Product prices use the price list assigned to your client account. An assignment
+is required; a missing assignment returns `500 internalError` and must be corrected
+on the client account. IPv4 option charges are shared across price lists.
 
 ### The five ids
 
