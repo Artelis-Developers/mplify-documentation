@@ -299,7 +299,8 @@ POST /rejectQuote
 ```
 
 Moves an orderable quote to `declined`. `reason` is optional. The response is the same
-shape as the request.
+shape as the request. This operation accepts POST only; unsupported methods return
+`501 notImplemented`.
 
 **The endpoint is named `rejectQuote` and the state is `declined`** — that is not a
 mistake on either side. MEF 80 defines one operation, *Cancel or Decline Quote*, and the
@@ -346,8 +347,11 @@ A disagreement returns `422 invalidValue` with a `propertyPath` identifying the
 field. Endpoint-specific configuration URNs are compared as the same product type.
 A stated contract term must also agree with the quote.
 
-A quote may be ordered once. A second order against the same quote is refused; request a
-new quote.
+Only a quote in `approved.orderable` may be ordered. Placing the Order moves it to
+`accepted`, so each quote may be used once. Other states, including `accepted`,
+`declined` and `inProgress`, return `422 invalidValue` on the quote reference.
+The state check and Order writes are enforced in one transaction, including when
+Orders arrive concurrently. Request a new quote for another order.
 
 ---
 
@@ -753,6 +757,9 @@ with a new reference or quote without first confirming its outcome with Cegecom.
 ---
 
 ## Carrier Ethernet integration
+
+Connect-Ethernet uses the Billie Operator UNI and Access E-Line configurations.
+The custom Internet configurations are `BROADBAND` and `DIA`.
 
 An Access E-Line is quoted with the Operator UNI it terminates on. The POQ may ask
 in specification mode; use Cegecom's agreed specification identifiers and handover
@@ -1223,7 +1230,7 @@ The catalogue decides what is sold, and it is keyed on `(offering, term)`:
 |---|---|---|
 | `ONLINE-BUSINESS-*` | Broadband | 12 months |
 | `ONLINE-CORPORATE-*` | DIA | 12 or 36 months |
-| `CONNECT-ETHERNET-*` | Ethernet / Access E-Line | 12 or 36 months |
+| `CONNECT-ETHERNET-*` | Access E-Line | 12 or 36 months |
 | `CONNECT-ETHERNET-UNI` | Operator UNI port | supplied with the connection, not charged |
 
 The number in the name is the rate in Mbps, and the bandwidth you state must match it.
