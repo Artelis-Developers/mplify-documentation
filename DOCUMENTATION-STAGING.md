@@ -413,7 +413,7 @@ product is available at your address. Requests and response excerpts are illustr
 
 Replace `ADDRESS_ID`, `POQ_ID`, `QUOTE_ID` and `ORDER_ID` with values returned in
 your own flow. They are placeholders, not ids to send unchanged. Treat returned ids
-as opaque strings: preserve their case and the whole address id, including any `#`.
+as opaque strings and send them back exactly as received.
 Use a new `externalId` for each new resource within its resource type.
 
 For GET commands, also assign the returned resource ids to shell variables, for example
@@ -1355,6 +1355,7 @@ request that was previously accepted.
 | Access E-Lines per UNI | not limited | exactly one, and no UNI without one, on Quote and Order |
 | Class of service | any name accepted | `Basic` only |
 | A create or decline that could not be stored | could still answer success | `500`, and nothing is created or changed |
+| The address id | in the form `000000000048#000000000000` | in the form `696001016240100010`. An id in the old form is not recognised: validate the address again and use the id returned |
 
 ---
 
