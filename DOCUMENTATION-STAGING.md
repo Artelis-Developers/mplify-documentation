@@ -1,6 +1,6 @@
 # Cegecom MEF LSO Sonata (Billie) API
 
-**Last updated:** 13 October 2026
+**Last updated:** 13 November 2026
 
 Serviceability, quoting and ordering for Carrier Ethernet and internet access, to the
 **MEF LSO Sonata Billie** release.
@@ -12,6 +12,10 @@ The Broadband and Carrier Ethernet worked flows, retrieval, `externalId` filters
 quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
+
+**Changed on 13 November 2026** - see [Changes](#changes-13-november-2026) for the
+list. Those rules are covered by the service's own test suite and have not yet been
+re-verified against staging.
 Cegecom supplies your environment URL, credentials, product catalogue and handover
 references. Confirm availability in your assigned environment before going live.
 
@@ -36,6 +40,7 @@ references. Confirm availability in your assigned environment before going live.
 - [Products and terms](#products-and-terms)
 - [Where we are narrower than MEF](#where-we-are-narrower-than-mef)
 - [Not yet implemented](#not-yet-implemented)
+- [Changes, 13 November 2026](#changes-13-november-2026)
 
 ---
 
@@ -193,7 +198,8 @@ Easy to conflate, and only one of them is forbidden on an `add`:
 | `…Item[].id` | your own name for this item | **required** |
 | `…ItemRelationship[].id` | another item in the same request | fine |
 | `product.productRelationship[].id` | a referenced product, e.g. an ENNI | fine |
-| `product.productOffering.id` / `productSpecification.id` | a catalogue entry | fine |
+| `product.productOffering.id` | a catalogue entry | **required** on every Quote and Order item |
+| `product.productSpecification.id` | a category of product | POQ only, in place of the offering |
 | `product.id` | an **in-service** product | **refused** |
 
 ---
@@ -234,9 +240,24 @@ independently with a `serviceabilityConfidence`:
 
 | Value | Meaning |
 |---|---|
-| `green` | serviceable — fiber in service, or capacity available |
+| `green` | serviceable |
 | `yellow` | probably serviceable, subject to a feasibility check |
-| `red` | not serviceable |
+| `red` | not automatically serviceable — contact us for manual verification |
+
+A successful `POST` returns **`201 Created`**.
+
+**Installation interval.** A green or yellow item carries an `installationInterval`
+of **40 working days** (`"units": "businessDays"`), the same for every product. Read
+both `amount` and `units`.
+
+**A red item promises nothing.** It carries no `installationInterval`, and
+`subjectToFeasibilityCheck` is `false`: no check is scheduled on our side. Its
+`serviceabilityConfidenceReason` asks you to contact us by email for manual
+verification; our address is in `relatedContactInformation` on the same response.
+
+**Handover capacity is not checked.** For an Access E-Line we confirm that the ENNI
+you name exists and is assigned to your API key. We do not check its remaining
+capacity; managing the aggregate carried over your handover is yours.
 
 **Two ways to ask.** Name a `productOffering.id` from our catalogue, or name a
 `productSpecification.id` and let us answer with the offering that fits — MEF's
@@ -269,10 +290,18 @@ configuration, offering, location and existing-product relationships. A mismatch
 returns `422 invalidValue` with a `propertyPath` identifying the field.
 
 The answer carries, per item, a `quoteItemPrice` (non-recurring and recurring),
-`quoteItemTerm`, and an installation interval. The quote as a whole carries a
-`validFor` window. Treat `endDateTime` as the end of the quoted validity and obtain a
-new quote afterwards. **The current API does not automatically expire a quote when
-that date passes; clients must not rely on automatic expiry enforcement.**
+`quoteItemTerm`, and an installation interval of 40 working days, the same interval
+the POQ states. A successful `POST` returns **`201 Created`**.
+
+**A quote is valid for 90 days.** The quote carries a `validFor` window, and an order
+placed after `validFor.endDateTime` is refused with `422 invalidValue` on the quote
+reference; request a new quote. The quote's `state` is not changed when the window
+closes - it continues to read `approved.orderable` - so check the date, not only the
+state. A quote issued earlier keeps the window printed on it.
+
+**Every quote item names its offering.** `product.productOffering.id` is required on
+each item, including the UNI; use the ids the POQ answer returned. A quote item that
+names only a `productSpecification` is refused with `422 missingProperty`.
 
 **A quote item comes back under the id you gave it.** We do not rename items.
 
@@ -284,7 +313,19 @@ standalone product.
 The port's offering is `CONNECT-ETHERNET-UNI`. It carries no rate, because a UNI item
 states none — the bandwidth belongs to the Access E-Line that terminates on it, and
 that is the item the price is on. Name it on the UNI quote item; the POQ answer returns
-it, so you can take it from there rather than hard-coding it.
+it, so you can take it from there rather than hard-coding it. Any other offering id on
+a UNI item is refused with `422 referenceNotFound`.
+
+**One Access E-Line per UNI.** Each Access E-Line names the UNI it terminates on, each
+UNI carries exactly one Access E-Line, and a UNI is not quoted without one. A second
+connection needs a second UNI in the same quote. Item ids must be unique within the
+quote.
+
+**One class of service.** We supply a single Ethernet service level, named `Basic`.
+Wherever a Carrier Ethernet configuration names a class of service -
+`listOfClassOfServiceNames`, or `classOfServiceName` on a bandwidth profile - it must
+be `Basic`; any other name is refused with `422 invalidValue`. This applies to POQ and
+Quote alike.
 
 ---
 
@@ -317,7 +358,7 @@ and a synchronous quote never passes through that state.
 | `approved.orderable` | we answered your quote request |
 | `declined` | you called `POST /rejectQuote` |
 | `accepted` | **you placed an order against it** |
-| `expired` | an expired quote is refused for ordering; date-driven transition is not automatic |
+| `expired` | refused for ordering. The state is not set automatically; a quote past `validFor.endDateTime` is refused on its date |
 
 `accepted`, `declined` and `expired` are final. An accepted quote cannot be declined and
 cannot be ordered a second time.
@@ -333,7 +374,15 @@ GET  /productOrder?externalId=&limit=&offset=
 ```
 
 Orders one or more items of a quote. `MEFQuoteItemRef` names **one** quote item, so a
-two-item quote needs two order items.
+two-item quote needs two order items. A successful `POST` returns **`201 Created`**.
+
+Every order item names its `product.productOffering.id` - the offering of the quote
+item it orders - or is refused with `422 missingProperty`. Order item ids must be
+unique, and a quote item can be ordered once: two order items naming the same quote
+item are refused.
+
+**An Access E-Line and its UNI are ordered together.** Ordering either without the
+other is refused with `422 invalidValue`.
 
 **Placing an order accepts its quote** — MEF 80: *"The ACCEPTED state is set by the
 Seller. It is triggered by a Product Order."* The order and the acceptance are written
@@ -347,7 +396,8 @@ A disagreement returns `422 invalidValue` with a `propertyPath` identifying the
 field. Endpoint-specific configuration URNs are compared as the same product type.
 A stated contract term must also agree with the quote.
 
-Only a quote in `approved.orderable` may be ordered. Placing the Order moves it to
+Only a quote in `approved.orderable`, and still inside its `validFor` window, may be
+ordered. Placing the Order moves it to
 `accepted`, so each quote may be used once. Other states, including `accepted`,
 `declined` and `inProgress`, return `422 invalidValue` on the quote reference.
 The state check and Order writes are enforced in one transaction, including when
@@ -492,7 +542,8 @@ Check the item's `serviceabilityConfidence`, `subjectToFeasibilityCheck` and
 `installationInterval`. Read both `amount` and `units`; do not assume the interval
 is always expressed in days. A completed POQ (`done.ready`) means the assessment
 is finished; it does not mean every item is green. Discuss yellow results with
-Cegecom before committing to delivery; a red result is not a serviceable offering.
+Cegecom before committing to delivery. A red result is not a serviceable offering and
+carries no `installationInterval`; contact Cegecom for manual verification.
 
 ### 3. Request a quote
 
@@ -1202,7 +1253,7 @@ Every other status is a single object.
 
 | Status | Code | When |
 |---|---|---|
-| **400** | `invalidBody` | the body is not valid JSON |
+| **400** | `invalidBody` | the body is missing, is not valid JSON, or is not a JSON object |
 | **403** | `accessDenied` | missing or unknown API key |
 | **404** | `notFound` | `GET /{id}` — no such resource of yours |
 | **422** | `missingProperty` | a required property is absent |
@@ -1210,7 +1261,7 @@ Every other status is a single object.
 | **422** | `invalidFormat` | a value does not match the expected format |
 | **422** | `referenceNotFound` | a reference in the body names nothing we hold |
 | **422** | `unexpectedProperty` | a property we do not support was sent |
-| **500** | `internalError` | our fault |
+| **500** | `internalError` | our fault. Nothing was created or changed: a create that cannot be stored returns this and no id, and a decline that cannot be stored leaves the quote as it was |
 | **501** | `notImplemented` | method not served on this path |
 
 **404 and 422 do not overlap.** A `GET /{id}` for an unknown id is `404 notFound` — the
@@ -1255,6 +1306,10 @@ decision rather than a gap:
 | **A quote reference on every order item** | we cannot price an order without the quote that priced it |
 | **`productConfiguration` required on an `add`** | MEF requires it; we enforce it |
 | **An Access E-Line must be quoted with its UNI** | we do not sell the port separately, and have no UNI inventory to reference |
+| **One Access E-Line per UNI** | an additional service needs another UNI |
+| **`productOffering.id` on every Quote and Order item** | MEF leaves it optional; we price and provision by offering, so the buyer states which one |
+| **The only class of service is `Basic`** | we supply one Ethernet service level |
+| **An order is refused after its quote's `validFor.endDateTime`** | a quote is a price for 90 days |
 | **No `POST /cancelQuote`** | unreachable for a synchronous seller — see [Decline a quote](#decline-a-quote) |
 
 ---
@@ -1279,6 +1334,27 @@ of this API acts on them.
 
 **Not served at all:** `POST /cancelQuote`, the notification hub (`POST /hub`),
 `GET /geographicSite`, `GET /geographicAddress/{id}`, and product inventory.
+
+---
+
+## Changes, 13 November 2026
+
+Review these if you integrated before this date; each can change the answer to a
+request that was previously accepted.
+
+| Change | Before | Now |
+|---|---|---|
+| Success status on `POST` POQ, Quote and Order | `200` | `201 Created` |
+| A body that is not valid JSON, on Quote, Order and `rejectQuote` | `500` | `400 invalidBody` |
+| Quote validity | 30 days, not enforced | 90 days; an order after `validFor.endDateTime` is refused |
+| Installation interval | 45 or 90 `calendarDays` | 40 `businessDays` on POQ and Quote |
+| A red POQ item | carried an interval and `subjectToFeasibilityCheck: true` | no interval, `false`, and a reason asking you to contact us |
+| ENNI capacity | a request above the handover's capacity was answered `yellow` | not checked |
+| `productOffering.id` on a Quote item | could be omitted where a `productSpecification` was named | required on every Quote and Order item |
+| The UNI's offering id | any value accepted | must be `CONNECT-ETHERNET-UNI` |
+| Access E-Lines per UNI | not limited | exactly one, and no UNI without one, on Quote and Order |
+| Class of service | any name accepted | `Basic` only |
+| A create or decline that could not be stored | could still answer success | `500`, and nothing is created or changed |
 
 ---
 
