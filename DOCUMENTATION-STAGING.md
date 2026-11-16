@@ -1,6 +1,6 @@
 # Cegecom MEF LSO Sonata (Billie) API
 
-**Last updated:** 13 November 2026
+**Last updated:** 16 November 2026
 
 Serviceability, quoting and ordering for Carrier Ethernet and internet access, to the
 **MEF LSO Sonata Billie** release.
@@ -224,6 +224,18 @@ Takes an address, returns the closest matches and an id for each.
 ```
 
 Take `bestMatchGeographicAddress.id` and use it as a `place` on the next step.
+
+**How an address is matched.** Within the postcode you give, the street is compared
+without regard to case, accents, a leading street type (`Rue de`, `Avenue`, `Av.`),
+or how punctuation is written: `Rue de l'Etang`, `rue de l’étang` and
+`Rue de l Etang` are the same street. The house number must be the building's own
+(`4A` and `4a` agree; `4` does not match `4A`). `streetNr` may be omitted for a
+building that has none. `city` is optional; when given it must be the building's.
+If nothing matches, the result is `noMatchingAddresses`.
+
+**Address ids changed format on 13 November 2026.** An id obtained before then is
+answered `422 referenceNotFound` on a POQ; validate the address again to obtain its
+current id.
 
 ---
 
