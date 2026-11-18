@@ -271,6 +271,19 @@ verification; our address is in `relatedContactInformation` on the same response
 you name exists and is assigned to your API key. We do not check its remaining
 capacity; managing the aggregate carried over your handover is yours.
 
+**S-VLANs on the ENNI.** The S-VLAN in `enniEp.ovcEndPointMap.ovcEndPointMapFormE`
+must be free on that ENNI and between 2 and 4094:
+
+- If it is already in use, the POQ is refused with `422 invalidValue`. The message
+  lists free S-VLANs to choose from, and `propertyPath` points to the id.
+- If you leave `ovcEndPointMapFormE` out, we choose a free S-VLAN and return it in the
+  answer's `enniEp`. Use that value in your quote and order.
+- An S-VLAN in a green or yellow answer is held for you and is not offered to another
+  request.
+- If another request takes the same S-VLAN at the same moment, the POQ returns
+  `409 conflict`. Send it again.
+
+
 **Two ways to ask.** Name a `productOffering.id` from our catalogue, or name a
 `productSpecification.id` and let us answer with the offering that fits — MEF's
 *specification mode*, and the right choice when you want to know what we would sell you
@@ -829,7 +842,9 @@ in specification mode; use Cegecom's agreed specification identifiers and handov
 reference. The current names used by this API are `UNISpec` and `ELineSpec`.
 The following 100 Mbps symmetric POQ is a complete request template. Replace
 `ADDRESS_ID` and `ENNI_ID`; the VLAN values and physical link are examples
-and must match the service agreed with Cegecom.
+and must match the service agreed with Cegecom. The ENNI S-VLAN (`100` below) must
+be free on your ENNI, or left out for us to choose; see
+[S-VLANs on the ENNI](#endpoints).
 
 ```json
 {
@@ -1268,6 +1283,7 @@ Every other status is a single object.
 | **400** | `invalidBody` | the body is missing, is not valid JSON, or is not a JSON object |
 | **403** | `accessDenied` | missing or unknown API key |
 | **404** | `notFound` | `GET /{id}` — no such resource of yours |
+| **409** | `conflict` | POQ: another request took the same ENNI S-VLAN at the same moment. Nothing was reserved; send it again |
 | **422** | `missingProperty` | a required property is absent |
 | **422** | `invalidValue` | a property has a value we cannot accept |
 | **422** | `invalidFormat` | a value does not match the expected format |
