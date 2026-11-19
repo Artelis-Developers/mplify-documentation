@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** Upcoming (Additive), product catalogue - see [Changelog](#changelog).
+**Latest change:** 19 November 2026 (Additive), product catalogue - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -1451,7 +1451,7 @@ Newest first. Each entry is tagged:
 An entry headed **Upcoming** is on the staging environment and not yet in
 production. It is dated with the day it reaches production.
 
-### Upcoming - Additive - on staging, not yet in production
+### 19 November 2026 - Additive
 
 | Change | Before | Now |
 |---|---|---|
