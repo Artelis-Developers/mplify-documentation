@@ -1,3 +1,7 @@
+> **Staging reference.** Describes the staging environment (`/staging/billie`),
+> which may be ahead of production. For production, see
+> [DOCUMENTATION.md](DOCUMENTATION.md).
+
 # Cegecom MEF LSO Sonata (Billie) API
 
 **Last updated:** 19 November 2026
