@@ -1,6 +1,6 @@
 # Cegecom MEF LSO Sonata (Billie) API
 
-**Last updated:** 16 November 2026
+**Last updated:** 19 November 2026
 
 Serviceability, quoting and ordering for Carrier Ethernet and internet access, to the
 **MEF LSO Sonata Billie** release.
@@ -13,11 +13,11 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Changed on 13 November 2026** - see [Changes](#changes-13-november-2026) for the
-list. Those rules are covered by the service's own test suite and have not yet been
-re-verified against staging.
-Cegecom supplies your environment URL, credentials, product catalogue and handover
-references. Confirm availability in your assigned environment before going live.
+**Latest change:** Upcoming (Additive), product catalogue - see [Changelog](#changelog).
+
+Cegecom supplies your environment URL, credentials and handover references; the
+offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
+Confirm availability in your assigned environment before going live.
 
 ---
 
@@ -33,6 +33,7 @@ references. Confirm availability in your assigned environment before going live.
   - [Quote](#quote)
   - [Decline a quote](#decline-a-quote)
   - [Product Order](#product-order)
+  - [Product catalogue](#product-catalogue)
 - [Worked integration example](#worked-integration-example)
 - [Retrieval and filtering](#retrieval-and-filtering)
 - [Carrier Ethernet integration](#carrier-ethernet-integration)
@@ -40,7 +41,7 @@ references. Confirm availability in your assigned environment before going live.
 - [Products and terms](#products-and-terms)
 - [Where we are narrower than MEF](#where-we-are-narrower-than-mef)
 - [Not yet implemented](#not-yet-implemented)
-- [Changes, 13 November 2026](#changes-13-november-2026)
+- [Changelog](#changelog)
 
 ---
 
@@ -427,6 +428,73 @@ ordered. Placing the Order moves it to
 `declined` and `inProgress`, return `422 invalidValue` on the quote reference.
 The state check and Order writes are enforced in one transaction, including when
 Orders arrive concurrently. Request a new quote for another order.
+
+---
+
+### Product catalogue
+
+```
+GET /productOffering
+```
+
+Lists every offering **you** can quote, with what you need to build a request for it.
+No prices: those come from a quote. This is a **Cegecom extension**, not part of MEF
+Billie, which defines no catalogue API.
+
+The list is read live from the catalogue Quote prices from, and is specific to your
+API key: an offering, contract term or option appears only if a quote for it would be
+accepted for you. One call returns the whole list; there is no `/{id}`, filter or
+pagination. A failure to read the catalogue is `500 internalError`, never an empty
+list.
+
+```json
+[
+  {
+    "id": "CONNECT-ETHERNET-300",
+    "name": "Connect-Ethernet",
+    "productConfigurationType": {
+      "poq": "urn:mef:lso:spec:sonata:access-eline:v2.0.0:poq",
+      "quote": "urn:mef:lso:spec:sonata:access-eline:v2.0.0:quote",
+      "order": "urn:mef:lso:spec:sonata:access-eline:v2.0.0:order"
+    },
+    "bandwidth": { "downMbps": 300, "upMbps": 300 },
+    "terms": ["12", "36"],
+    "soldSeparately": true
+  },
+  {
+    "id": "CONNECT-ETHERNET-UNI",
+    "name": "Connect-Ethernet UNI",
+    "productConfigurationType": {
+      "poq": "urn:mef:lso:spec:sonata:carrier-ethernet-operator-uni:v2.0.0:poq",
+      "quote": "urn:mef:lso:spec:sonata:carrier-ethernet-operator-uni:v2.0.0:quote",
+      "order": "urn:mef:lso:spec:sonata:carrier-ethernet-operator-uni:v2.0.0:order"
+    },
+    "soldSeparately": false
+  },
+  {
+    "id": "ONLINE-CORPORATE-200",
+    "name": "Online-Corporate",
+    "productConfigurationType": "DIA",
+    "bandwidth": { "downMbps": 200, "upMbps": 200 },
+    "terms": ["12", "36"],
+    "soldSeparately": true,
+    "options": [
+      { "id": "WAN-PREFIX-29", "field": "wanIpv4Prefix", "type": "WAN", "prefix": "/29" },
+      { "id": "WAN-PREFIX-30", "field": "wanIpv4Prefix", "type": "WAN", "prefix": "/30", "default": true },
+      { "id": "LAN-PREFIX-29", "field": "lanIpv4Prefix", "type": "LAN", "prefix": "/29" }
+    ]
+  }
+]
+```
+
+| Field | Use it as |
+|---|---|
+| `id` | `product.productOffering.id` |
+| `productConfigurationType` | `product.productConfiguration.@type`. For Carrier Ethernet, the URN for the endpoint you are calling - each endpoint accepts only its own |
+| `bandwidth` | the rates your request must state, in Mbps |
+| `terms` | the contract terms, in months, you can quote |
+| `soldSeparately` | `false` for the UNI: quote and order it together with an Access E-Line, never alone. It carries no term or bandwidth |
+| `options` | Online-Business and Online-Corporate only. Put `prefix` in the property `field` names. The option marked `default` is what you get when you state no WAN prefix |
 
 ---
 
@@ -1320,6 +1388,9 @@ the API validates requests against the current catalogue
 Asking for a term an offering does not have is `422 referenceNotFound`, and the message
 names the terms it does have.
 
+The table explains the naming; [`GET /productOffering`](#product-catalogue) is the
+authoritative list of the offerings, terms and options you can quote.
+
 ---
 
 ## Where we are narrower than MEF
@@ -1365,10 +1436,28 @@ of this API acts on them.
 
 ---
 
-## Changes, 13 November 2026
+## Changelog
 
-Review these if you integrated before this date; each can change the answer to a
-request that was previously accepted.
+Newest first. Each entry is tagged:
+
+- **Breaking** - a request that was accepted before can now be refused or answered
+  differently. Review it if you integrated before that date.
+- **Additive** - something new and optional. Nothing you send today changes.
+
+An entry headed **Upcoming** is on the staging environment and not yet in
+production. It is dated with the day it reaches production.
+
+### Upcoming - Additive - on staging, not yet in production
+
+| Change | Before | Now |
+|---|---|---|
+| Product catalogue | the catalogue was supplied by Cegecom | [`GET /productOffering`](#product-catalogue) lists the offerings, terms and options you can quote, without prices |
+
+<a id="changes-13-november-2026"></a>
+
+### 13 November 2026 - Breaking
+
+Each of these can change the answer to a request that was previously accepted.
 
 | Change | Before | Now |
 |---|---|---|
