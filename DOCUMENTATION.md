@@ -1,6 +1,6 @@
 # Cegecom MEF LSO Sonata (Billie) API
 
-**Last updated:** 19 November 2026
+**Last updated:** 20 November 2026
 
 Serviceability, quoting and ordering for Carrier Ethernet and internet access, to the
 **MEF LSO Sonata Billie** release.
@@ -13,7 +13,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** 19 November 2026 (Additive), product catalogue - see [Changelog](#changelog).
+**Latest change:** 20 November 2026 (Breaking), the ENNI S-VLAN is required at POQ and no longer held or chosen - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -272,17 +272,18 @@ verification; our address is in `relatedContactInformation` on the same response
 you name exists and is assigned to your API key. We do not check its remaining
 capacity; managing the aggregate carried over your handover is yours.
 
-**S-VLANs on the ENNI.** The S-VLAN in `enniEp.ovcEndPointMap.ovcEndPointMapFormE`
-must be free on that ENNI and between 2 and 4094:
+**S-VLANs on the ENNI.** An Access E-Line POQ must name the S-VLAN in
+`enniEp.ovcEndPointMap.ovcEndPointMapFormE`, and it must be free on that ENNI and
+between 2 and 4094:
 
+- If `ovcEndPointMapFormE` is absent or empty, the POQ is refused with
+  `422 missingProperty`. Your quote and order must carry the same S-VLAN as the POQ,
+  so it cannot be added later.
 - If it is already in use, the POQ is refused with `422 invalidValue`. The message
   lists free S-VLANs to choose from, and `propertyPath` points to the id.
-- If you leave `ovcEndPointMapFormE` out, we choose a free S-VLAN and return it in the
-  answer's `enniEp`. Use that value in your quote and order.
-- An S-VLAN in a green or yellow answer is held for you and is not offered to another
-  request.
-- If another request takes the same S-VLAN at the same moment, the POQ returns
-  `409 conflict`. Send it again.
+- Two items of one request may not ask for the same S-VLAN on the same ENNI.
+- A POQ does not hold the S-VLAN for you. It is checked against the S-VLANs in use
+  at the time you ask; it becomes yours when the service is delivered.
 
 
 **Two ways to ask.** Name a `productOffering.id` from our catalogue, or name a
@@ -911,7 +912,7 @@ reference. The current names used by this API are `UNISpec` and `ELineSpec`.
 The following 100 Mbps symmetric POQ is a complete request template. Replace
 `ADDRESS_ID` and `ENNI_ID`; the VLAN values and physical link are examples
 and must match the service agreed with Cegecom. The ENNI S-VLAN (`100` below) must
-be free on your ENNI, or left out for us to choose; see
+be free on your ENNI; see
 [S-VLANs on the ENNI](#endpoints).
 
 ```json
@@ -1351,7 +1352,6 @@ Every other status is a single object.
 | **400** | `invalidBody` | the body is missing, is not valid JSON, or is not a JSON object |
 | **403** | `accessDenied` | missing or unknown API key |
 | **404** | `notFound` | `GET /{id}` — no such resource of yours |
-| **409** | `conflict` | POQ: another request took the same ENNI S-VLAN at the same moment. Nothing was reserved; send it again |
 | **422** | `missingProperty` | a required property is absent |
 | **422** | `invalidValue` | a property has a value we cannot accept |
 | **422** | `invalidFormat` | a value does not match the expected format |
@@ -1447,11 +1447,33 @@ Newest first. Each entry is tagged:
 An entry headed **Upcoming** is on the staging environment and not yet in
 production. It is dated with the day it reaches production.
 
+**Integrated before November 2026?** Every entry from 4 November 2026 onwards applies
+to you. Above all: **address ids issued before 13 November 2026 no longer work.**
+Validate each saved address again and store the id returned.
+
+### 20 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| An ENNI S-VLAN in a POQ answer | held for you, and refused to any later POQ, including your own | not held; each POQ is checked against the S-VLANs in use when you ask |
+| An Access E-Line POQ that names no ENNI S-VLAN (`ovcEndPointMapFormE` absent or empty) | we chose a free one and returned it in `enniEp` | refused with `422 missingProperty` |
+| `409 conflict` on POQ | returned when another request took the same S-VLAN at the same moment | no longer returned |
+
 ### 19 November 2026 - Additive
 
 | Change | Before | Now |
 |---|---|---|
 | Product catalogue | the catalogue was supplied by Cegecom | [`GET /productOffering`](#product-catalogue) lists the offerings, terms and options you can quote, without prices |
+
+### 17 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| A POQ naming an address id we do not hold, including one in the old form | `500 internalError` | `422 referenceNotFound`, `propertyPath` pointing at the place's `id` |
+| Address validation of a street written with an apostrophe or a hyphen (e.g. `Rue de l'Etang`) | often `noMatchingAddresses` | found |
+| How a submitted street and city are compared | as normalised text | case, accents, apostrophe style, spaces and hyphens are ignored; a spelling that fits two different streets is answered `noMatchingAddresses` |
+| House number letters (`4a`, `4A`) | compared with their case | compared without case |
+| A POQ at one of Cegecom's datacenters | answered from the supplier's data | `green`, reason `On-Net`, 40 business days |
 
 <a id="changes-13-november-2026"></a>
 
@@ -1473,6 +1495,18 @@ Each of these can change the answer to a request that was previously accepted.
 | Class of service | any name accepted | `Basic` only |
 | A create or decline that could not be stored | could still answer success | `500`, and nothing is created or changed |
 | The address id | in the form `000000000048#000000000000` | in the form `696001016240100010`. An id in the old form is not recognised: validate the address again and use the id returned |
+
+### 9 November 2026 - Additive
+
+| Change | Before | Now |
+|---|---|---|
+| IPv4 prefixes on Broadband and Online-Corporate | not selectable | optional `wanIpv4Prefix` (omitted means `/30`, and the answers state it) and `lanIpv4Prefix` (omitted means none), on POQ, Quote and Order. See [IPv4 prefix options](#ipv4-prefix-options) |
+
+### 4 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| The product on a Quote or an Order | partly compared with what it references | must match the linked POQ item, and an order also its quote: configuration, offering, location and existing-product relationships. Optional fields must agree in presence and value. A mismatch is `422 invalidValue` with `propertyPath` naming the field |
 
 ---
 
