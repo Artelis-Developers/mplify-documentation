@@ -1451,6 +1451,10 @@ Newest first. Each entry is tagged:
 An entry headed **Upcoming** is on the staging environment and not yet in
 production. It is dated with the day it reaches production.
 
+**Integrated before November 2026?** Every entry from 4 November 2026 onwards applies
+to you. Above all: **address ids issued before 13 November 2026 no longer work.**
+Validate each saved address again and store the id returned.
+
 ### Upcoming - Breaking - on staging, not yet in production
 
 | Change | Before | Now |
@@ -1464,6 +1468,16 @@ production. It is dated with the day it reaches production.
 | Change | Before | Now |
 |---|---|---|
 | Product catalogue | the catalogue was supplied by Cegecom | [`GET /productOffering`](#product-catalogue) lists the offerings, terms and options you can quote, without prices |
+
+### 17 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| A POQ naming an address id we do not hold, including one in the old form | `500 internalError` | `422 referenceNotFound`, `propertyPath` pointing at the place's `id` |
+| Address validation of a street written with an apostrophe or a hyphen (e.g. `Rue de l'Etang`) | often `noMatchingAddresses` | found |
+| How a submitted street and city are compared | as normalised text | case, accents, apostrophe style, spaces and hyphens are ignored; a spelling that fits two different streets is answered `noMatchingAddresses` |
+| House number letters (`4a`, `4A`) | compared with their case | compared without case |
+| A POQ at one of Cegecom's datacenters | answered from the supplier's data | `green`, reason `On-Net`, 40 business days |
 
 <a id="changes-13-november-2026"></a>
 
@@ -1485,6 +1499,18 @@ Each of these can change the answer to a request that was previously accepted.
 | Class of service | any name accepted | `Basic` only |
 | A create or decline that could not be stored | could still answer success | `500`, and nothing is created or changed |
 | The address id | in the form `000000000048#000000000000` | in the form `696001016240100010`. An id in the old form is not recognised: validate the address again and use the id returned |
+
+### 9 November 2026 - Additive
+
+| Change | Before | Now |
+|---|---|---|
+| IPv4 prefixes on Broadband and Online-Corporate | not selectable | optional `wanIpv4Prefix` (omitted means `/30`, and the answers state it) and `lanIpv4Prefix` (omitted means none), on POQ, Quote and Order. See [IPv4 prefix options](#ipv4-prefix-options) |
+
+### 4 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| The product on a Quote or an Order | partly compared with what it references | must match the linked POQ item, and an order also its quote: configuration, offering, location and existing-product relationships. Optional fields must agree in presence and value. A mismatch is `422 invalidValue` with `propertyPath` naming the field |
 
 ---
 
