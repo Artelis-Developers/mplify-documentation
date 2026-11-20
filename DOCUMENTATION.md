@@ -13,7 +13,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** 20 November 2026 (Breaking), the ENNI S-VLAN is required at POQ and no longer held or chosen - see [Changelog](#changelog).
+**Latest change:** 20 November 2026 (Breaking), address validation answers with Billie's results and our own spelling of the address - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -29,6 +29,7 @@ Confirm availability in your assigned environment before going live.
 - [What we require of a request](#what-we-require-of-a-request)
 - [Endpoints](#endpoints)
   - [Address validation](#address-validation)
+  - [Retrieve an address](#retrieve-an-address)
   - [Product Offering Qualification](#product-offering-qualification)
   - [Quote](#quote)
   - [Decline a quote](#decline-a-quote)
@@ -217,7 +218,9 @@ Takes an address, returns the closest matches and an id for each.
 
 ```json
 {
+  "provideAlternative": true,
   "submittedGeographicAddress": {
+    "@type": "FieldedAddress",
     "streetName": "Rue de Gibraltar", "streetNr": "18",
     "postcode": "1624", "city": "Luxembourg", "country": "Luxembourg"
   }
@@ -226,13 +229,56 @@ Takes an address, returns the closest matches and an id for each.
 
 Take `bestMatchGeographicAddress.id` and use it as a `place` on the next step.
 
+**What comes back.** `validationResult` is one of Billie's three values:
+
+| `validationResult` | Carries | Meaning |
+|---|---|---|
+| `success` | `bestMatchGeographicAddress` | the building you sent |
+| `partial` | `alternateGeographicAddress` only | no exact match; these are buildings in the same postcode whose street begins like yours. Review one before using its id |
+| `fail` | neither | no match, and no alternatives (or `provideAlternative` was not `true`) |
+
+The best match and each alternative is **our** record of the building: a
+`FieldedAddress` with `id`, `href`, and the street, number, postcode and city as we
+hold them (`RUE DE L'ETANG`, not the spelling you sent). The number is split into
+MEF's fields: `12A` is `"streetNr": "12", "streetNrSuffix": "A"`, and a building
+numbered `20-22` is `"streetNr": "20", "streetNrLast": "22"`. Your request is
+returned unchanged as `submittedGeographicAddress`. Alternatives are only offered
+when there is no best match.
+
 **How an address is matched.** Within the postcode you give, the street is compared
 without regard to case, accents, a leading street type (`Rue de`, `Avenue`, `Av.`),
 or how punctuation is written: `Rue de l'Etang`, `rue de l’étang` and
 `Rue de l Etang` are the same street. The house number must be the building's own
-(`4A` and `4a` agree; `4` does not match `4A`). `streetNr` may be omitted for a
-building that has none. `city` is optional; when given it must be the building's.
-If nothing matches, the result is `noMatchingAddresses`.
+(`4A` and `4a` agree; `4` does not match `4A`). Send it in `streetNr`, or split
+across `streetNrSuffix` and `streetNrLast` as MEF intends - `"streetNr": "4",
+"streetNrSuffix": "A"` is `4A`. `streetNr` may be omitted for a building that has
+none. The postcode may carry the country prefix (`L-1624`). `city` is optional;
+when given it must be the building's. `streetName`, `postcode` and `city` must be
+present.
+
+**What we refuse, with `422 invalidValue`:**
+
+| You send | `propertyPath` | Why |
+|---|---|---|
+| a `country` other than Luxembourg (`Luxembourg`, `LU`, `LUX`, `Luxemburg`, `Lëtzebuerg` are all accepted; omitted means Luxembourg) | `.../country` | we hold Luxembourg addresses only |
+| `"@type": "FormattedAddress"` | `.../@type` | we match fielded addresses; send the street, number, postcode and city as separate fields |
+| `"@type": "MEFGeographicPoint"` or `"GeographicAddressLabel"` without an `associatedGeographicAddress` | `.../@type` | we do not look addresses up by coordinates or by label |
+
+A `MEFGeographicPoint` or `GeographicAddressLabel` that carries an
+`associatedGeographicAddress` is validated by that fielded address. `@type` may be
+omitted, and is then taken to be `FieldedAddress`.
+
+**Floors, flats and units** (`geographicSubAddress`) are accepted and not used: the
+answer is always the building.
+
+### Retrieve an address
+
+```
+GET /geographicAddress/{id}
+```
+
+Returns the address an id names, exactly as validation answered it: the `href` on
+every validated address points here. `404 notFound` for an id we do not hold.
 
 **Address ids changed format on 13 November 2026.** An id obtained before then is
 answered `422 referenceNotFound` on a POQ; validate the address again to obtain its
@@ -529,7 +575,9 @@ address you want to validate:
 
 ```json
 {
+  "provideAlternative": true,
   "submittedGeographicAddress": {
+    "@type": "FieldedAddress",
     "streetName": "Rue de Gibraltar",
     "streetNr": "18",
     "postcode": "1624",
@@ -555,9 +603,10 @@ For `validationResult: "success"`, copy `bestMatchGeographicAddress.id` to
 }
 ```
 
-An HTTP 200 alone does not mean the address matched. Check `validationResult` and
-the returned match. You may request alternatives with `"provideAlternative": true`;
-review an alternative before using its id. Do not proceed with a fabricated address id.
+An HTTP 200 alone does not mean the address matched. Check `validationResult`:
+`partial` means no match but alternatives in `alternateGeographicAddress` - review
+one before using its id; `fail` means neither. Do not proceed with a fabricated
+address id.
 
 ### 2. Qualify the product
 
@@ -1432,7 +1481,7 @@ accepted.
 of this API acts on them.
 
 **Not served at all:** `POST /cancelQuote`, the notification hub (`POST /hub`),
-`GET /geographicSite`, `GET /geographicAddress/{id}`, and product inventory.
+`GET /geographicSite`, and product inventory.
 
 ---
 
@@ -1450,6 +1499,27 @@ production. It is dated with the day it reaches production.
 **Integrated before November 2026?** Every entry from 4 November 2026 onwards applies
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
+
+### 20 November 2026 - Breaking
+
+| Change | Before | Now |
+|---|---|---|
+| `validationResult` when nothing matches | `noMatchingAddresses`, or `ambiguousAddresses` when alternatives were returned | Billie's values: `fail`, or `partial` when alternatives are returned |
+| `bestMatchGeographicAddress` | your spelling of the address, with our id | our record of the building (e.g. `RUE DE L'ETANG`, `CONTERN`), with `id` and `href` |
+| House number in a returned address | `streetNr` as one string (`12A`) | split into MEF's fields: `streetNr` `12`, `streetNrSuffix` `A`; a range `20-22` as `streetNr` and `streetNrLast` |
+| Each `alternateGeographicAddress` | no `@type`; the address nested under `associatedGeographicAddress` | a `FieldedAddress` shaped like the best match, with `@type`, `id` and `href` |
+| `submittedGeographicAddress` in the answer | rebuilt from the street, number, postcode, city and country only | your address returned as sent |
+| Alternatives for a street named `Rue de ...`, `Rue du ...`, `Rue des ...` | none were found | found |
+| A `country` other than Luxembourg | searched, and answered as no match | `422 invalidValue` on `country` |
+| `"@type": "FormattedAddress"`, or a `MEFGeographicPoint` or `GeographicAddressLabel` without `associatedGeographicAddress` | `422 missingProperty` on `streetName` | `422 invalidValue` on `@type` |
+
+### 20 November 2026 - Additive
+
+| Change | Before | Now |
+|---|---|---|
+| Retrieve an address by id | not served | [`GET /geographicAddress/{id}`](#retrieve-an-address) |
+| `streetNrSuffix` and `streetNrLast` in a submitted address | ignored: `"streetNr": "12", "streetNrSuffix": "A"` was looked up as `12` | read: it is `12A` |
+| A postcode with its country prefix (`L-1624`) | no match | matched as `1624` |
 
 ### 20 November 2026 - Breaking
 
