@@ -4,7 +4,7 @@
 
 # Cegecom MEF LSO Sonata (Billie) API
 
-**Last updated:** 19 November 2026
+**Last updated:** 20 November 2026
 
 Serviceability, quoting and ordering for Carrier Ethernet and internet access, to the
 **MEF LSO Sonata Billie** release.
@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** Upcoming (Breaking), the ENNI S-VLAN is required at POQ and no longer held or chosen - see [Changelog](#changelog).
+**Latest change:** 20 November 2026 (Breaking), the ENNI S-VLAN is required at POQ and no longer held or chosen - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -1455,7 +1455,7 @@ production. It is dated with the day it reaches production.
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
 
-### Upcoming - Breaking - on staging, not yet in production
+### 20 November 2026 - Breaking
 
 | Change | Before | Now |
 |---|---|---|
