@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** 20 November 2026 (Breaking), address validation answers with Billie's results and our own spelling of the address - see [Changelog](#changelog).
+**Latest change:** Upcoming (Breaking), a firm quote must name its POQ item and answers what that POQ item said; budgetary quotes are answered budgetary - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -406,13 +406,46 @@ Prices what a POQ said is serviceable. `productOfferingQualificationItem` on a q
 item links back to the qualification — both halves, `productOfferingQualificationId`
 and `id`, because one qualification can answer several products.
 
+**Firm or budgetary** (`buyerRequestedQuoteLevel`, required):
+
+| | `firm` | `budgetary` |
+|---|---|---|
+| What it is | a committed price you can order | an indication of price, to plan or negotiate with |
+| `productOfferingQualificationItem` on every item | **required** (`422 missingProperty` if absent) | optional |
+| `quoteLevel` in the answer | `firm`, or `firmSubjectToFeasibilityCheck` | `budgetary` |
+| `state` in the answer | `approved.orderable` | `answered` |
+| Can be ordered | yes | **no**: request a firm quote to order |
+
+**What the POQ answered decides what the quote promises,** item by item:
+
+| POQ item | Quote item (firm) |
+|---|---|
+| `green` | priced, `approved.orderable`; level `firm` |
+| `yellow`, or `subjectToFeasibilityCheck: true` | priced, `approved.orderable`, `subjectToFeasibilityCheck: true`; level `firmSubjectToFeasibilityCheck` |
+| `red` | `unableToProvide`: no price, no installation interval |
+
+The quote's `quoteLevel` is that of its least committed item. If any item is
+`unableToProvide`, so is the quote, and it cannot be ordered; qualify again, or quote
+only the items that can be provided. A budgetary quote naming a `red` POQ item is
+also `unableToProvide`.
+
+**A POQ supports a quote until its `guaranteedUntilDate`.** A quote naming a POQ item
+past that date is refused with `422 invalidValue` on
+`productOfferingQualificationId`; qualify again.
+
+**Every item needs an install location:** `product.place`, or for an Access E-Line its
+UNI's. An item with neither is refused with `422 missingProperty` on
+`/quoteItem/{n}/product/place`.
+
 The submitted product must match the linked POQ item's product, including its
 configuration, offering, location and existing-product relationships. A mismatch
 returns `422 invalidValue` with a `propertyPath` identifying the field.
 
 The answer carries, per item, a `quoteItemPrice` (non-recurring and recurring),
 `quoteItemTerm`, and an installation interval of 40 working days, the same interval
-the POQ states. A successful `POST` returns **`201 Created`**.
+the POQ states (none of these on an `unableToProvide` item). A successful `POST`
+returns **`201 Created`** - also when the answer is `unableToProvide`: the quote exists,
+and says what we cannot provide.
 
 **A quote is valid for 90 days.** The quote carries a `validFor` window, and an order
 placed after `validFor.endDateTime` is refused with `422 invalidValue` on the quote
@@ -1564,6 +1597,23 @@ production. It is dated with the day it reaches production.
 **Integrated before November 2026?** Every entry from 4 November 2026 onwards applies
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
+
+### Upcoming - Breaking - on staging, not yet in production
+
+| Change | Before | Now |
+|---|---|---|
+| A firm quote item without `productOfferingQualificationItem` | accepted | `422 missingProperty`: name the POQ item, or request a budgetary quote |
+| A quote item with no install location (`product.place`, or for an Access E-Line its UNI's) | accepted, priced at the standard price | `422 missingProperty` on `/quoteItem/{n}/product/place` |
+| A quote item whose POQ item was `red` | priced, `approved.orderable` | `unableToProvide`, unpriced; the quote is `unableToProvide` and cannot be ordered |
+| A quote naming a POQ item past its `guaranteedUntilDate` | accepted | `422 invalidValue`: qualify again |
+| `buyerRequestedQuoteLevel: budgetary` | answered as a firm, orderable quote | `quoteLevel: budgetary`, `state: answered`; not orderable |
+| `quoteLevel` of a firm quote | always `firmSubjectToFeasibilityCheck` | per item from its POQ item: `firm` for green, `firmSubjectToFeasibilityCheck` for yellow; the quote takes the lowest |
+
+### Upcoming - Additive - on staging, not yet in production
+
+| Change | Before | Now |
+|---|---|---|
+| A budgetary quote without a POQ | not available (every quote was firm) | `buyerRequestedQuoteLevel: budgetary` needs no `productOfferingQualificationItem` |
 
 ### 20 November 2026 - Breaking
 
