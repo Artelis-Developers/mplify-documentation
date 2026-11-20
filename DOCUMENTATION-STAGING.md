@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** Upcoming (Breaking), address validation answers with Billie's results and our own spelling of the address - see [Changelog](#changelog).
+**Latest change:** 20 November 2026 (Breaking), address validation answers with Billie's results and our own spelling of the address - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -1504,7 +1504,7 @@ production. It is dated with the day it reaches production.
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
 
-### Upcoming - Breaking - on staging, not yet in production
+### 20 November 2026 - Breaking
 
 | Change | Before | Now |
 |---|---|---|
@@ -1517,7 +1517,7 @@ Validate each saved address again and store the id returned.
 | A `country` other than Luxembourg | searched, and answered as no match | `422 invalidValue` on `country` |
 | `"@type": "FormattedAddress"`, or a `MEFGeographicPoint` or `GeographicAddressLabel` without `associatedGeographicAddress` | `422 missingProperty` on `streetName` | `422 invalidValue` on `@type` |
 
-### Upcoming - Additive - on staging, not yet in production
+### 20 November 2026 - Additive
 
 | Change | Before | Now |
 |---|---|---|
