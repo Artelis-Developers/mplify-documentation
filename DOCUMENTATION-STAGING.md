@@ -656,6 +656,23 @@ An HTTP 200 alone does not mean the address matched. Check `validationResult`:
 one before using its id; `fail` means neither. Do not proceed with a fabricated
 address id.
 
+**For a flat, office or room** rather than the whole building, add its floor and
+apartment to `submittedGeographicAddress`:
+
+```json
+{
+  "geographicSubAddress": {
+    "levelType": "FLOOR", "levelNumber": "3",
+    "subUnit": [{ "subUnitType": "FLAT", "subUnitNumber": "302" }]
+  }
+}
+```
+
+A `success` then names the unit, e.g. `696001023500100002#0000011`. Use that id as
+`ADDRESS_ID` in every step below, exactly as a building id. A `partial` lists the
+building and its units on that floor: choose one. See
+[Floors, flats and rooms](#address-validation) for how units are matched.
+
 ### 2. Qualify the product
 
 Save this as `poq-request.json`, substituting the returned address id:
