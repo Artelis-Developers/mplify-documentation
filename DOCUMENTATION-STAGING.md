@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** Upcoming (Breaking), a firm quote must name its POQ item and answers what that POQ item said; budgetary quotes are answered budgetary - see [Changelog](#changelog).
+**Latest change:** 20 November 2026 (Breaking), a firm quote must name its POQ item and answers what that POQ item said; budgetary quotes are answered budgetary - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -1598,7 +1598,7 @@ production. It is dated with the day it reaches production.
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
 
-### Upcoming - Breaking - on staging, not yet in production
+### 20 November 2026 - Breaking
 
 | Change | Before | Now |
 |---|---|---|
@@ -1609,7 +1609,7 @@ Validate each saved address again and store the id returned.
 | `buyerRequestedQuoteLevel: budgetary` | answered as a firm, orderable quote | `quoteLevel: budgetary`, `state: answered`; not orderable |
 | `quoteLevel` of a firm quote | always `firmSubjectToFeasibilityCheck` | per item from its POQ item: `firm` for green, `firmSubjectToFeasibilityCheck` for yellow; the quote takes the lowest |
 
-### Upcoming - Additive - on staging, not yet in production
+### 20 November 2026 - Additive
 
 | Change | Before | Now |
 |---|---|---|
