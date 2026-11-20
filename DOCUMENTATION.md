@@ -268,8 +268,51 @@ A `MEFGeographicPoint` or `GeographicAddressLabel` that carries an
 `associatedGeographicAddress` is validated by that fielded address. `@type` may be
 omitted, and is then taken to be `FieldedAddress`.
 
-**Floors, flats and units** (`geographicSubAddress`) are accepted and not used: the
-answer is always the building.
+**Floors, flats and rooms (units).** A building may have units: flats, offices,
+shops and technical rooms, each with its own id (the building id followed by
+`#` and seven digits, e.g. `696001023500100002#0000011`). To validate one, send the
+building's address with a `geographicSubAddress`:
+
+```json
+{
+  "provideAlternative": true,
+  "submittedGeographicAddress": {
+    "@type": "FieldedAddress",
+    "streetName": "Rue Jean Piret", "streetNr": "3",
+    "postcode": "2350", "city": "Luxembourg", "country": "Luxembourg",
+    "geographicSubAddress": {
+      "levelType": "FLOOR", "levelNumber": "3",
+      "subUnit": [{ "subUnitType": "FLAT", "subUnitNumber": "302" }]
+    }
+  }
+}
+```
+
+The building is matched first, as above; only then its units. A unit matches when
+its floor equals `levelNumber` (compared as a number, so `03` is `3`) and its
+apartment equals one of the `subUnitNumber`s, ignoring only case and spacing.
+`levelType`, `subUnitType` and `buildingName` are not compared.
+
+- **Exactly one unit matches:** `success`, and that unit is the best match, with its
+  floor and apartment in `geographicSubAddress` as we hold them.
+- **Otherwise** `partial`: the building first (you may always qualify the building
+  itself), then the units of the floor you stated, or every unit of the building
+  when you stated no floor or it has no units on that floor. With
+  `provideAlternative` not `true`, `fail`.
+
+**Apartments are matched exactly as we hold them, and not interpreted.** We hold
+the supplier's designation of each unit: often a floor-and-number code (`302` is
+floor 3, unit 02), sometimes with the label on the door (`101 (A35)`), sometimes a
+room name (`LOCAL TECHNIQUE`). Flat `2` on floor 3 does not match `302`; you receive
+the floor's units to choose from instead. Every unit is returned with
+`subUnitType: UNIT`, because we do not know whether it is a flat, a shop or a room.
+
+A unit id is used exactly like a building id: as the `place` of a POQ, Quote or
+Order, and with `GET /geographicAddress/{id}` (encode `#` as `%23` in the URL).
+A unit is qualified on its building's network.
+
+**Datacenter addresses have no units.** There, a `geographicSubAddress` is not
+matched and the datacenter building is the answer; order to the building.
 
 ### Retrieve an address
 
@@ -277,8 +320,9 @@ answer is always the building.
 GET /geographicAddress/{id}
 ```
 
-Returns the address an id names, exactly as validation answered it: the `href` on
-every validated address points here. `404 notFound` for an id we do not hold.
+Returns the address an id names, building or unit, exactly as validation answered
+it: the `href` on every validated address points here. A unit id's `#` is sent
+encoded, `%23`. `404 notFound` for an id we do not hold.
 
 **Address ids changed format on 13 November 2026.** An id obtained before then is
 answered `422 referenceNotFound` on a POQ; validate the address again to obtain its
@@ -1512,6 +1556,8 @@ Validate each saved address again and store the id returned.
 | Alternatives for a street named `Rue de ...`, `Rue du ...`, `Rue des ...` | none were found | found |
 | A `country` other than Luxembourg | searched, and answered as no match | `422 invalidValue` on `country` |
 | `"@type": "FormattedAddress"`, or a `MEFGeographicPoint` or `GeographicAddressLabel` without `associatedGeographicAddress` | `422 missingProperty` on `streetName` | `422 invalidValue` on `@type` |
+| A submitted address with a `geographicSubAddress` (floor, flat) | ignored: the building was the best match | matched against the building's units: the unit as best match, or `partial` with the building and its units |
+| A malformed `geographicSubAddress` (not an object, or `subUnit` not a list of objects) | ignored | `422 invalidValue` |
 
 ### 20 November 2026 - Additive
 
@@ -1520,6 +1566,7 @@ Validate each saved address again and store the id returned.
 | Retrieve an address by id | not served | [`GET /geographicAddress/{id}`](#retrieve-an-address) |
 | `streetNrSuffix` and `streetNrLast` in a submitted address | ignored: `"streetNr": "12", "streetNrSuffix": "A"` was looked up as `12` | read: it is `12A` |
 | A postcode with its country prefix (`L-1624`) | no match | matched as `1624` |
+| Units (flats, offices, shops, technical rooms) | not available | returned by address validation with their own id, and accepted as the `place` of a POQ, Quote and Order and by `GET /geographicAddress/{id}` - see [Address validation](#address-validation) |
 
 ### 20 November 2026 - Breaking
 
