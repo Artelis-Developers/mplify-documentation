@@ -1528,6 +1528,8 @@ The catalogue decides what is sold, and it is keyed on `(offering, term)`:
 | `CONNECT-ETHERNET-UNI` | Operator UNI port | supplied with the connection, not charged |
 
 The number in the name is the rate in Mbps, and the bandwidth you state must match it.
+State it with `irUnits` in MEF's spelling, upper case: `MBPS` (also `BPS`, `KBPS`,
+`GBPS`, `TBPS`). Any other spelling, `mbps` included, is `422 invalidValue`.
 `ONLINE-BUSINESS-1000/500` is asymmetric — 1000 down, 500 up; the others are symmetric.
 Available contract terms may change. Confirm the current terms with Cegecom Sales; 
 the API validates requests against the current catalogue
@@ -1608,6 +1610,8 @@ Validate each saved address again and store the id returned.
 | A quote naming a POQ item past its `guaranteedUntilDate` | accepted | `422 invalidValue`: qualify again |
 | `buyerRequestedQuoteLevel: budgetary` | answered as a firm, orderable quote | `quoteLevel: budgetary`, `state: answered`; not orderable |
 | `quoteLevel` of a firm quote | always `firmSubjectToFeasibilityCheck` | per item from its POQ item: `firm` for green, `firmSubjectToFeasibilityCheck` for yellow; the quote takes the lowest |
+| `irUnits` not in MEF's upper-case spelling (`mbps`, `Mbps`, ...) | accepted; a quote or order then had to repeat the POQ's exact spelling | `422 invalidValue` on that `irUnits`: send `MBPS` (or `BPS`, `KBPS`, `GBPS`, `TBPS`) |
+| `irUnits` on an Internet product's `ipUni` envelopes | not read: `irValue` was taken as Mbps whatever the unit | read: `1 GBPS` matches a 1000 Mbps offering, `1000 KBPS` does not |
 
 ### 20 November 2026 - Additive
 
