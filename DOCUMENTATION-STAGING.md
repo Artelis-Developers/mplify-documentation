@@ -17,7 +17,7 @@ quote decline were also verified against the staging API on **12 October 2026**.
 Carrier Ethernet was tested with an authorised test ENNI; use your own assigned
 handover reference when integrating.
 
-**Latest change:** 20 November 2026 (Breaking), a firm quote must name its POQ item and answers what that POQ item said; budgetary quotes are answered budgetary - see [Changelog](#changelog).
+**Latest change:** Upcoming (Breaking), an offering id of the other internet product is refused as not found for the item's `@type` - see [Changelog](#changelog).
 
 Cegecom supplies your environment URL, credentials and handover references; the
 offerings you can quote are listed by [`GET /productOffering`](#product-catalogue).
@@ -1599,6 +1599,13 @@ production. It is dated with the day it reaches production.
 **Integrated before November 2026?** Every entry from 4 November 2026 onwards applies
 to you. Above all: **address ids issued before 13 November 2026 no longer work.**
 Validate each saved address again and store the id returned.
+
+### Upcoming - Breaking - on staging, not yet in production
+
+| Change | Before | Now |
+|---|---|---|
+| An Online-Business offering id on a `DIA` item, or an Online-Corporate one on a `BROADBAND` item | `422 invalidValue`, saying the id states the wrong number of rates | `422 referenceNotFound` on `productOffering.id`: the offering is not found as a product of that `@type` |
+| An offering id we do not sell, sent with bandwidth envelopes that disagree with it | `422 invalidValue` (bandwidth mismatch) | `422 referenceNotFound` on `productOffering.id`; the envelopes are checked once the offering is found |
 
 ### 20 November 2026 - Breaking
 
